@@ -1,4 +1,7 @@
 
+# Symbolic 
+
+<img width="600" alt="speed1" src="./figures/train_steps.png">
 # Speed
 <img width="600" alt="speed1" src="./figures/speed1.png">
 <img width="600" alt="speed1" src="./figures/speed2.png">
