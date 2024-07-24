@@ -8,8 +8,20 @@
 <img width="600" alt="speed1" src="./figures/speed2.png">
 <img width="600" alt="speed1" src="./figures/speed3.png">
 
+# Apply in Knot Thoerem
+
+<img width="600" alt="speed1" src="./figures/supervised_knot.jpeg">
+
+
 # PDE loss
+
+gaussian kan
 <img width="600" alt="speed1" src="./figures/pde_loss.png">
+
+mlp 
+<img width="600" alt="speed1" src="./figures/pde_mlp_loss2.png">
+
+
 
 # Continue Learning
 
