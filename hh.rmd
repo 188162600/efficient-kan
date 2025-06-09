@@ -1,0 +1,4 @@
+data = read.csv('./realestate.csv', row.names = 1)
+
+# look at first few observations
+head(data)

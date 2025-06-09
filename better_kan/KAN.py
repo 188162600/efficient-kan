@@ -78,8 +78,8 @@ class KAN(nn.Module):
             obtain the symbolic formula of the KAN network
     '''
 
-    def __init__(self, width=None, num_basis=5,symbolic_enabled=False, bias_trainable=True,basis_trainable=True,grid_range=None,
-                 device=None,dtype=None, base_fn=...,seed=0):
+    def __init__(self, width=None, num_basis=5,symbolic_enabled=False, bias_trainable=True,basis_trainable=True,grid_range=None,kernel=...,
+                 device=None,dtype=None, base_fn=...,seed=0,save_acts=True):
         '''
         initalize a KAN model
         
@@ -122,6 +122,7 @@ class KAN(nn.Module):
         >>> (model.act_fun[0].in_dim, model.act_fun[0].out_dim), (model.act_fun[1].in_dim, model.act_fun[1].out_dim)
         ((2, 5), (5, 1))
         '''
+        self.save_acts=save_acts
         factory_kwargs = {'device': device, 'dtype': dtype}
         self.factory_kwargs = factory_kwargs
         self.num_basis = num_basis
@@ -152,9 +153,9 @@ class KAN(nn.Module):
                 ranges=None
             if symbolic_enabled:
            
-                sp_batch=RBFKANLayerBias(in_features=width[l], out_features=width[l + 1],num_basis=num_basis,ranges=ranges,base_fn=base_fn,basis_trainable=basis_trainable,**factory_kwargs)
+                sp_batch=RBFKANLayerBias(in_features=width[l], out_features=width[l + 1],num_basis=num_basis,ranges=ranges,base_fn=base_fn,basis_trainable=basis_trainable,kernel=kernel,**factory_kwargs)
             else:
-                sp_batch=RBFKANLayer(in_features=width[l], out_features=width[l + 1],num_basis=num_basis,ranges=ranges,base_fn=base_fn,basis_trainable=basis_trainable,**factory_kwargs)
+                sp_batch=RBFKANLayer(in_features=width[l], out_features=width[l + 1],num_basis=num_basis,ranges=ranges,base_fn=base_fn,basis_trainable=basis_trainable,kernel=kernel,**factory_kwargs)
             self.act_fun.append(sp_batch)
 
             # bias
@@ -339,18 +340,19 @@ class KAN(nn.Module):
                 postacts_symbolic = 0.
 
             x = x_numerical + x_symbolic
-            postacts = postacts_numerical + postacts_symbolic
+            if self.save_acts:
+                postacts = postacts_numerical + postacts_symbolic
 
-            # self.neurons_scale.append(torch.mean(torch.abs(x), dim=0))
-            # grid_reshape = self.act_fun[l].grid.reshape(self.width[l + 1], self.width[l], -1)
-            # input_range = grid_reshape[:, :, -1] - grid_reshape[:, :, 0] + 1e-4
-            input_range=torch.mean(torch.abs(preacts), dim=0)
-            output_range = torch.mean(torch.abs(postacts), dim=0)
-            self.acts_scale.append(output_range / input_range)
-            self.acts_scale_std.append(torch.std(postacts, dim=0))
-            self.spline_preacts.append(preacts.detach())
-            self.spline_postacts.append(postacts.detach())
-            self.spline_postsplines.append(postspline.detach())
+                # self.neurons_scale.append(torch.mean(torch.abs(x), dim=0))
+                # grid_reshape = self.act_fun[l].grid.reshape(self.width[l + 1], self.width[l], -1)
+                # input_range = grid_reshape[:, :, -1] - grid_reshape[:, :, 0] + 1e-4
+                input_range=torch.mean(torch.abs(preacts), dim=0)
+                output_range = torch.mean(torch.abs(postacts), dim=0)
+                self.acts_scale.append(output_range / input_range)
+                self.acts_scale_std.append(torch.std(postacts, dim=0))
+                self.spline_preacts.append(preacts.detach())
+                self.spline_postacts.append(postacts.detach())
+                self.spline_postsplines.append(postspline.detach())
 
             x = x + self.biases[l].weight
             self.acts.append(x)

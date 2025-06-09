@@ -274,7 +274,7 @@ class KAN(nn.Module):
         for l in range(self.depth):
             self.act_fun[l].initialize_grid_from_parent(model.act_fun[l], model.acts[l])
 
-    def forward(self, x):
+    def forward(self, x,save_acts=False,acts_has_grad=False):
         '''
         KAN forward
         

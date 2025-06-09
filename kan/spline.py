@@ -138,3 +138,75 @@ def curve2coef(x_eval, y_eval, grid, k, device="cpu"):
     coef = torch.linalg.lstsq(mat.to(device), y_eval.unsqueeze(dim=2).to(device),
                               driver='gelsy' if device == 'cpu' else 'gels').solution[:, :, 0]
     return coef.to(device)
+# def lagrange(x, grid, k=0, extend=True):
+#     '''
+#     evaludate x on B-spline bases
+    
+#     Args:
+#     -----
+#         x : 2D torch.tensor
+#             inputs, shape (number of splines, number of samples)
+#         grid : 2D torch.tensor
+#             grids, shape (number of splines, number of grid points)
+#         k : int
+#             the piecewise polynomial order of splines.
+#         extend : bool
+#             If True, k points are extended on both ends. If False, no extension (zero boundary condition). Default: True
+#         device : str
+#             devicde
+    
+#     Returns:
+#     --------
+#         spline values : 3D torch.tensor
+#             shape (number of splines, number of B-spline bases (coeffcients), number of samples). The numbef of B-spline bases = number of grid points + k - 1.
+      
+#     Example
+#     -------
+#     >>> num_spline = 5
+#     >>> num_sample = 100
+#     >>> num_grid_interval = 10
+#     >>> k = 3
+#     >>> x = torch.normal(0,1,size=(num_spline, num_sample))
+#     >>> grids = torch.einsum('i,j->ij', torch.ones(num_spline,), torch.linspace(-1,1,steps=num_grid_interval+1))
+#     >>> B_batch(x, grids, k=k).shape
+#     torch.Size([5, 13, 100])
+#     '''
+   
+#     # x shape: (size, x); grid shape: (size, grid)
+#     def extend_grid(grid, k_extend=0):
+#         # pad k to left and right
+#         # grid shape: (batch, grid)
+#         h = (grid[:, [-1]] - grid[:, [0]]) / (grid.shape[1] - 1)
+
+#         for i in range(k_extend):
+#             grid = torch.cat([grid[:, [0]] - h, grid], dim=1)
+#             grid = torch.cat([grid, grid[:, [-1]] + h], dim=1)
+#         grid = grid
+#         return grid
+
+#     if extend == True:
+#         grid = extend_grid(grid, k_extend=k)
+    
+#     indices=torch.arange(0,3).unsqueeze(0)+torch.arange(0,k+1,2).unsqueeze(1)
+#     grid=grid[:,indices]
+#     # print("x",x.shape,k,grid.shape)
+#     x=x.unsqueeze(1)
+#     grid=grid.unsqueeze(3) 
+#     x_1=grid[:,:,0]
+#     x_2=grid[:,:,1]
+#     x_3=grid[:,:,2]
+#     denom1 = (x_1 - x_2) * (x_1 - x_3)
+#     denom2 = (x_2 - x_1) * (x_2 - x_3)
+#     denom3 = (x_3 - x_1) * (x_3 - x_2)
+#     l1 = (x - x_2) * (x - x_3) / denom1
+#     l2 = (x - x_1) * (x - x_3) / denom2
+#     l3 = (x - x_1) * (x - x_2) / denom3
+#     l=l1+l2+l3
+#     mask=(x>=x_1)&(x<=x_3)
+#     l=l*mask
+ 
+  
+#     return l
+
+# def B_batch(x, grid, k=0, extend=True, device='cpu'):
+#     return lagrange(x, grid, k, extend)

@@ -867,7 +867,7 @@ class  RBFKANLayer(nn.Module):
         self.grid_update_num+=1
         
 class RBF(nn.Module):
-    def __init__(self, in_features, out_features,dtype=None,device=None,ranges=None):
+    def __init__(self, in_features, out_features,kernel=...,dtype=None,device=None,ranges=None):
         super(RBF, self).__init__()
         factory_kwargs = {'device': device, 'dtype': dtype}
         self.in_features = in_features
@@ -894,8 +894,8 @@ class RBF(nn.Module):
         self.centers.data=torch.linspace(ranges[0],ranges[1],out_features,device=self.centers.device,dtype=self.centers.dtype).unsqueeze(0).repeat(in_features,1)
        
       
-      
-        beta =(get_rbf_width(2/out_features,math.log2(out_features)))
+        self.kernel=kernel
+        beta =(get_rbf_width(2/out_features,max( math.log2(out_features),1)))
         # print("beta",beta)
         # self.beta=torch.nn.Parameter(torch.ones(in_features,out_features)*beta)
         self.beta=beta
@@ -907,8 +907,13 @@ class RBF(nn.Module):
         x=x.unsqueeze(-1)*self.weight.unsqueeze(0) -center.unsqueeze(0)
         # print(center.shape,self.centers.shape)
         # print(center.shape,x.shape)
-        distance=(x**2)
-        y= torch.exp(-self.beta * distance)
+        if self.kernel is not ...:
+            y=self.kernel(x)
+        else:
+            distance=(x**2)
+            y= torch.exp(-self.beta * distance)
+        # distance=(x**2)
+        # y= torch.exp(-self.beta * distance)
         # y=torch.exp(-distance/(x.var()**2))
        
         
@@ -932,14 +937,14 @@ def gaussian_kaiming_uniform_(tensor, gain=0.33, mode='fan_in'):
         return tensor.uniform_(-bound, bound)
 
 class RBFKANLayer(nn.Module):
-    def __init__(self, in_features,out_features,num_basis,base_fn=...,basis_trainable=False,ranges=None,dtype=None,device=None):
+    def __init__(self, in_features,out_features,num_basis,base_fn=...,kernel=...,basis_trainable=False,ranges=None,dtype=None,device=None):
         super(RBFKANLayer, self).__init__()
         
         factory_kwargs = {'device': device, 'dtype': dtype}
         self.in_features=in_features
         self.out_features=out_features
         self.num_centers=num_basis
-        self.rbf = RBF(in_features, num_basis,ranges=ranges,**factory_kwargs).requires_grad_(basis_trainable)
+        self.rbf = RBF(in_features, num_basis,ranges=ranges,kernel=kernel,**factory_kwargs).requires_grad_(basis_trainable)
         # self.linear = nn.Linear(num_centers, out_features)
         # self.linear2=nn.Linear(in_features*num_centers,out_features)
         # self.in_features=in_features
@@ -1010,15 +1015,29 @@ class RBFKANLayer(nn.Module):
             y=y.unsqueeze(-1) *self.weight.unsqueeze(0)
             postact=(y.sum(dim=2)+self.bias).permute(0,2,1)
             return y.sum(dim=(1,2))+self.bias,preact,postact,postact
+    def initialize_grid_from_parent(self, parent, x):
+        x=x.detach()
+        with torch.no_grad():
+            y=parent(x)[0]
+        opt=LBFGS(self.parameters(),lr=0.1,tolerance_change=1e-32,tolerance_grad=1e-32,tolerance_ys=1e-32)
+        for i in range(20):
+            def closure():
+                opt.zero_grad()
+                y_pred=self.forward(x)[0]
+                loss=torch.nn.functional.mse_loss(y_pred,y)
+                loss.backward()
+                return loss
+            opt.step(closure)
+from better_kan.LBFGS import LBFGS
 class RBFKANLayerBias(nn.Module):
-    def __init__(self, in_features,out_features,num_basis,base_fn=...,basis_trainable=False,ranges=None,dtype=None,device=None):
+    def __init__(self, in_features,out_features,num_basis,base_fn=...,basis_trainable=True,ranges=None,kernel=...,dtype=None,device=None):
         super(RBFKANLayerBias, self).__init__()
         
         factory_kwargs = {'device': device, 'dtype': dtype}
         self.in_features=in_features
         self.out_features=out_features
         self.num_centers=num_basis
-        self.rbf = RBF(in_features, num_basis,ranges=ranges,**factory_kwargs).requires_grad_(basis_trainable)
+        self.rbf = RBF(in_features, num_basis,ranges=ranges,kernel=kernel,**factory_kwargs).requires_grad_(basis_trainable)
         # self.linear = nn.Linear(num_centers, out_features)
         # self.linear2=nn.Linear(in_features*num_centers,out_features)
         # self.in_features=in_features
@@ -1088,11 +1107,26 @@ class RBFKANLayerBias(nn.Module):
         postspline=postspline.permute(0,2,1)
         postact=postact.permute(0,2,1)
         return postact.sum(dim=2),preact,postact,postspline
+    # def forward(self, x):
+        
+    
+    #     base=self.base_fn(x).unsqueeze(-1)*self.scale_base.unsqueeze(0)
+    #     bias=self.bias
+    #     # preact=x.unsqueeze(1).repeat(1,self.out_features,1)
+    #     y = self.rbf(x)  # [batch, in_features, num_centers]
+        
+        
+    #     y=y.unsqueeze(-1) *self.weight.unsqueeze(0)
+    #     postspline=(y.sum(dim=2)+base)
+    #     postact=postspline+ bias
+    #     # postspline=postspline.permute(0,2,1)
+    #     # postact=postact.permute(0,2,1)
+    #     return postact.sum(dim=1),None,None,None
         # return y.sum(dim=(1,2))+bias.sum(dim=0)+base.sum(dim=0),preact,postact,postspline
            
             # return postact.sum(dim=2),preact,postact,postact
             # return y.sum(dim=(1,2))+self.bias+base.sum(dim=1) ,preact,postact,postact
-       
+    
     def get_subset(self,in_id,out_id):
         subset=RBFKANLayerBias(len(in_id),len(out_id),self.num_centers,base_fn=self.base_fn,dtype=self.weight.dtype,device=self.weight.device)
         self.rbf.get_subset(in_id,subset.rbf)
@@ -1106,6 +1140,19 @@ class RBFKANLayerBias(nn.Module):
        
     def update_grid_from_samples(self, x,range_min,range_max):
         return 
+    def initialize_grid_from_parent(self, parent, x):
+        x=x.detach()
+        with torch.no_grad():
+            y=parent(x)[0]
+        opt=LBFGS(self.parameters(),lr=0.1,tolerance_change=1e-32,tolerance_grad=1e-32,tolerance_ys=1e-32)
+        for i in range(20):
+            def closure():
+                opt.zero_grad()
+                y_pred=self.forward(x)[0]
+                loss=torch.nn.functional.mse_loss(y_pred,y)
+                loss.backward()
+                return loss
+            opt.step(closure)
 # RBFKANLayer= RBFKANLayerBias
         # else:
         #     preact=x.unsqueeze(1).repeat(1,self.out_features,1)
