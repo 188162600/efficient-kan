@@ -37,3 +37,8 @@ efficient kan
 
 <img width="600" alt="speed1" src="./figures/guassian_kan_forgetting.png">
 
+# Accuracy
+<img width="600" alt="accuracy1" src="./figures/accuracy1.jpeg">
+<img width="600" alt="accuracy1" src="./figures/accuracy2.jpeg">
+
+
